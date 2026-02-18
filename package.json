@@ -1,0 +1,9 @@
+{
+    "name": "bsa-monorepo",
+    "version": "1.0.0",
+    "scripts": {
+        "frontend": "cd frontend && npm run dev",
+        "backend": "python -m backend.main",
+        "dev": "npm run frontend"
+    }
+}
