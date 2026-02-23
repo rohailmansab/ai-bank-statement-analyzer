@@ -1,0 +1,45 @@
+{
+  "bank_id": "alpha_bank",
+  "bank_name": "Alpha Bank",
+  "keywords": ["alpha bank", "alpha"],
+  "date_format": "%d-%m-%Y",
+  "header_keywords": {
+    "account_number": "Account No:",
+    "account_holder_name": "Account Name:",
+    "opening_balance": "Opening Balance:",
+    "closing_balance": "Closing Balance:",
+    "currency": "Currency:",
+    "address": "Address:"
+  },
+  "key_value_patterns": {
+    "account_number": ["Account No:\\s*([0-9\\-]+)", "Account Number:\\s*([0-9\\-]+)"],
+    "account_holder_name": ["Account Name:\\s*(.+?)(?=\\n|Account|$)", "Customer Name:\\s*(.+?)(?=\\n|$)"],
+    "opening_balance": ["Opening Balance:\\s*([\\d,.\\(\\)\\-]+)", "Opening Bal\\.?\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)"],
+    "closing_balance": ["Closing Balance:\\s*([\\d,.\\(\\)\\-]+)", "Closing Bal\\.?\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)"],
+    "currency": ["Currency:\\s*([A-Z]{3})", "Currency:\\s*([A-Za-z]+)"],
+    "address": ["Address:\\s*(.+?)(?=\\n\\n|Statement|$)"]
+  },
+  "transaction_table": {
+    "header": ["Trans Date", "Value Date", "Debit", "Credit", "Balance", "Remarks"],
+    "column_mapping": {
+      "date": "Trans Date",
+      "description": "Remarks",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    }
+  },
+  "table_column_mapping": {
+    "trans date": "Date",
+    "value date": "Date",
+    "debit": "Debit",
+    "credit": "Credit",
+    "balance": "Balance",
+    "remarks": "Description"
+  },
+  "date_formats": ["%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%d-%b-%Y"],
+  "amount_cleanup": {
+    "currency_symbols": ["₦", "NGN", "N", "$", "USD"],
+    "negative_indicators": ["(", ")", "-"]
+  }
+}

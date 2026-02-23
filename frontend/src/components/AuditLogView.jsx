@@ -1,6 +1,6 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Terminal, Shield, LogIn, Upload, Info, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Terminal, Shield, Upload, Info, AlertTriangle, X, Copy, Check } from 'lucide-react';
 
 const logs = [
     { id: 1, type: 'info', action: 'System Init', details: 'BSA Engine v2.4 initialized successfully.', time: '2024-02-16 13:45' },
@@ -11,6 +11,9 @@ const logs = [
 ];
 
 const AuditLogView = () => {
+    const [rawDataLogId, setRawDataLogId] = useState(null);
+    const [copied, setCopied] = useState(false);
+
     const getIcon = (type) => {
         switch (type) {
             case 'security': return <Shield className="w-4 h-4" />;
@@ -28,6 +31,28 @@ const AuditLogView = () => {
             default: return 'text-slate-400 bg-slate-800 border-slate-700';
         }
     };
+
+    const handleRawDataClick = (e, log) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setRawDataLogId(log.id);
+        setCopied(false);
+    };
+
+    const handleCopyRaw = () => {
+        const log = logs.find((l) => l.id === rawDataLogId);
+        if (!log) return;
+        const raw = JSON.stringify(log, null, 2);
+        navigator.clipboard.writeText(raw).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
+
+    const handleCloseModal = () => setRawDataLogId(null);
+
+    const selectedLog = rawDataLogId ? logs.find((l) => l.id === rawDataLogId) : null;
+    const rawJson = selectedLog ? JSON.stringify(selectedLog, null, 2) : '';
 
     return (
         <motion.div
@@ -62,8 +87,12 @@ const AuditLogView = () => {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-400 tracking-widest transition-all">
+                        <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                            <button
+                                type="button"
+                                onClick={(e) => handleRawDataClick(e, log)}
+                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-white tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+                            >
                                 Raw Data
                             </button>
                         </div>
@@ -71,8 +100,53 @@ const AuditLogView = () => {
                 ))}
             </div>
 
+            <AnimatePresence>
+                {rawDataLogId && (
+                    <>
+                        <div
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                            onClick={handleCloseModal}
+                            aria-hidden="true"
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg max-h-[80vh] z-50 rounded-[2rem] border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden flex flex-col"
+                        >
+                            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                                <span className="text-sm font-black text-white uppercase tracking-wider">
+                                    Raw Data — {selectedLog?.action}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyRaw}
+                                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-bold text-slate-300 flex items-center gap-2 transition-colors"
+                                    >
+                                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                        {copied ? 'Copied' : 'Copy'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseModal}
+                                        className="p-2 hover:bg-slate-800 rounded-xl text-slate-400 hover:text-white transition-colors"
+                                        aria-label="Close"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                </div>
+                            </div>
+                            <pre className="p-6 text-xs text-slate-300 font-mono overflow-auto flex-1 whitespace-pre-wrap break-words">
+                                {rawJson}
+                            </pre>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
             <div className="flex justify-center pt-4">
-                <button className="px-8 py-4 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl text-xs font-bold text-slate-500 transition-all flex items-center gap-3">
+                <button type="button" className="px-8 py-4 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl text-xs font-bold text-slate-500 transition-all flex items-center gap-3">
                     <Terminal className="w-4 h-4" /> Load Extended History
                 </button>
             </div>

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { LogOut, Upload, FileText, TrendingUp, AlertCircle, CheckCircle2, Download, BarChart3, LayoutDashboard, Settings, User } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { LogOut, Upload, FileText, FileDown, AlertCircle, Download, BarChart3, LayoutDashboard, Settings, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { downloadReportAsPdf } from '../utils/pdfExport';
 import SummaryCards from '../components/SummaryCards';
 import MonthlySummaryTable from '../components/MonthlySummaryTable';
 import UnusualDepositsTable from '../components/UnusualDepositsTable';
@@ -10,31 +11,107 @@ import ReportsView from '../components/ReportsView';
 import AuditLogView from '../components/AuditLogView';
 import ConfigurationsView from '../components/ConfigurationsView';
 
+const REPORTS_STORAGE_KEY = 'bsa_report_history';
+
+const getStoredReports = () => {
+    try {
+        const raw = localStorage.getItem(REPORTS_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch {
+        return [];
+    }
+};
+
 const Dashboard = ({ onLogout }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('overview');
+    const [reportHistory, setReportHistory] = useState([]);
+
+    useEffect(() => {
+        setReportHistory(getStoredReports());
+    }, []);
+
+    const saveReportHistory = (next) => {
+        setReportHistory(next);
+        try {
+            localStorage.setItem(REPORTS_STORAGE_KEY, JSON.stringify(next));
+        } catch (e) {
+            console.warn('Could not save report history', e);
+        }
+    };
 
     const handleUploadSuccess = (result) => {
         setData(result);
         setError('');
         setActiveTab('overview');
+        const name = result?.filename || 'Statement';
+        const size = (result?.metadata?.total_transactions != null)
+            ? `${String(Math.round(JSON.stringify(result).length / 1024))} KB`
+            : '—';
+        const entry = {
+            id: Date.now(),
+            name,
+            date: new Date().toISOString().slice(0, 10),
+            status: 'Success',
+            size,
+            fullReport: result,
+        };
+        const next = [entry, ...getStoredReports()].slice(0, 50);
+        saveReportHistory(next);
     };
 
-    const downloadReport = () => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const downloadReport = (reportData = data) => {
+        if (!reportData) return;
+        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `BSA_Report_${data.filename}.json`;
+        a.download = `BSA_Report_${reportData.filename || 'report'}.json`;
         a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const downloadPdfReport = (reportData = data) => {
+        if (!reportData) return;
+        setPdfLoading(true);
+        setError('');
+        try {
+            const name = (reportData.filename || 'BSA_Report').replace(/\s+/g, '_');
+            downloadReportAsPdf(reportData, name.endsWith('.pdf') ? name : `${name}.pdf`);
+        } catch (err) {
+            console.error('PDF export failed', err);
+            setError(err?.message || 'PDF export failed');
+        } finally {
+            setPdfLoading(false);
+        }
+    };
+
+    const handleViewReport = (report) => {
+        if (report?.fullReport) {
+            setData(report.fullReport);
+            setActiveTab('overview');
+        }
+    };
+
+    const handleDownloadReport = (report) => {
+        if (report?.fullReport) {
+            downloadReport(report.fullReport);
+        }
     };
 
     const renderContent = () => {
         switch (activeTab) {
             case 'reports':
-                return <ReportsView />;
+                return (
+                    <ReportsView
+                        reports={reportHistory}
+                        onViewReport={handleViewReport}
+                        onDownloadReport={handleDownloadReport}
+                    />
+                );
             case 'audit':
                 return <AuditLogView />;
             case 'config':
@@ -99,8 +176,11 @@ const Dashboard = ({ onLogout }) => {
                                     <FileText className="w-4 h-4" />
                                     Dataset: {data.filename}
                                 </p>
+                                <p className="text-slate-600 mt-1 text-xs font-medium">
+                                    All calculations and figures are from this uploaded statement only.
+                                </p>
                             </div>
-                            <div className="flex gap-4 w-full md:w-auto">
+                            <div className="flex flex-wrap gap-4 w-full md:w-auto">
                                 <button
                                     onClick={() => setData(null)}
                                     className="flex-1 md:flex-none h-14 px-6 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-slate-300"
@@ -109,11 +189,19 @@ const Dashboard = ({ onLogout }) => {
                                     Deep Scan New
                                 </button>
                                 <button
-                                    onClick={downloadReport}
-                                    className="flex-1 md:flex-none h-14 px-8 bg-gradient-to-r from-primary-600 to-primary-500 hover:shadow-primary-500/20 shadow-xl rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-white"
+                                    onClick={() => downloadReport()}
+                                    className="flex-1 md:flex-none h-14 px-6 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-slate-300"
                                 >
                                     <Download className="w-4 h-4" />
-                                    Export Data
+                                    Export JSON
+                                </button>
+                                <button
+                                    onClick={() => downloadPdfReport()}
+                                    disabled={pdfLoading}
+                                    className="flex-1 md:flex-none h-14 px-8 bg-gradient-to-r from-primary-600 to-primary-500 hover:shadow-primary-500/20 shadow-xl rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-white disabled:opacity-70"
+                                >
+                                    <FileDown className="w-4 h-4" />
+                                    {pdfLoading ? 'Generating…' : 'Export as PDF'}
                                 </button>
                             </div>
                         </div>
