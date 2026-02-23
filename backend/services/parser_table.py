@@ -15,8 +15,11 @@ class TableParser(BaseParser):
 
     def parse(self, content: bytes) -> pd.DataFrame:
         transactions = []
-        date_pattern = r'\d{1,4}[-/]\d{1,4}[-/]\d{1,4}'
-        
+        # Match dd/mm/yyyy, dd-mm-yyyy, dd-Mon-yyyy (GTBank iBank style), yyyy-mm-dd
+        date_pattern = re.compile(
+            r'\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{1,2}[-/\s][A-Za-z]{3}[-/\s]\d{2,4}|\d{2,4}[-/]\d{1,2}[-/]\d{1,2}',
+            re.IGNORECASE
+        )
         with pdfplumber.open(io.BytesIO(content)) as pdf:
             for page in pdf.pages:
                 tables = page.extract_tables()
@@ -25,7 +28,8 @@ class TableParser(BaseParser):
                     for row in table:
                         clean_row = [str(cell).strip() if cell is not None else "" for cell in row]
                         if not any(clean_row): continue
-                        if any(re.search(date_pattern, cell) for cell in clean_row[:2]):
+                        # Check first 5 cells so we catch GTBank iBank and similar layouts
+                        if any(date_pattern.search(c) for c in clean_row[:5]):
                             transactions.append(clean_row)
 
         if not transactions:

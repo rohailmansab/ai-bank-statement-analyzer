@@ -99,12 +99,10 @@ class DataNormalizer:
         if isinstance(value, (int, float)):
             return float(value)
         
-        # Remove commas, spaces, currency symbols
-        cleaned = str(value).replace(',', '').replace(' ', '').replace('₦', '').replace('NGN', '')
-        
-        # Handle negative signs
+        raw = str(value).strip()
+        # Fix PDF extraction artifacts: "& &5&,&7&0&8&,&3&2&4&.&9&9" -> keep only digits, dot, minus
+        cleaned = re.sub(r'[^\d.\-\()]', '', raw).replace(',', '')
         cleaned = cleaned.replace('(', '-').replace(')', '')
-        
         try:
             return float(cleaned)
         except (ValueError, TypeError):

@@ -1,10 +1,32 @@
 import pandas as pd
+import re
 from typing import Dict, Any, List
+
+# Fixed report structure (client format): same sections and labels for every upload.
+# All figures (totals, monthly_summary, large_deposits) are computed only from the uploaded statement.
+REPORT_FORMAT_VERSION = "standard"
+DATA_SOURCE_LABEL = "uploaded_statement"
+
+
+def _safe_float(x: Any) -> float:
+    """Ensure value is float for JSON (strip PDF artifacts like '& &5&,&7&0&8&')."""
+    if x is None:
+        return 0.0
+    if isinstance(x, (int, float)):
+        return float(x)
+    s = str(x).strip()
+    s = re.sub(r"[^\d.\-\()]", "", s).replace(",", "").replace("(", "-").replace(")", "")
+    try:
+        return float(s) if s else 0.0
+    except ValueError:
+        return 0.0
+
 
 class ReportBuilder:
     """
-    Production-grade report builder with output validation.
-    Ensures only accurate data reaches the frontend.
+    Builds reports in a fixed, client-standard format.
+    Layout and section names are always the same; every number is derived
+    solely from the uploaded bank statement (no mixing with other data).
     """
     
     @staticmethod
@@ -15,12 +37,37 @@ class ReportBuilder:
                           risk_analysis: Dict[str, Any] = None,
                           detected_bank: str = "other") -> Dict[str, Any]:
         """
-        Build final report with confidence scoring and all AI insights.
+        Build final report: fixed format, all calculations from the uploaded statement.
+        Ensures all numeric fields are clean floats (no garbled strings) for PDF/JSON.
         """
+        clean_totals = {
+            "total_income": _safe_float(totals.get("total_income")),
+            "total_expense": _safe_float(totals.get("total_expense")),
+            "average_income": _safe_float(totals.get("average_income")),
+            "average_expense": _safe_float(totals.get("average_expense")),
+        }
+        clean_monthly = [
+            {
+                "month": m.get("month", ""),
+                "income": _safe_float(m.get("income")),
+                "expenses": _safe_float(m.get("expenses")),
+            }
+            for m in (monthly_summary or [])
+        ]
+        clean_large = []
+        for d in (large_deposits or []):
+            clean_large.append({
+                "Date": str(d.get("Date", ""))[:50],
+                "Description": str(d.get("Description", ""))[:200],
+                "Amount": _safe_float(d.get("Amount") or d.get("Credit")),
+                "Category": str(d.get("Category", "")),
+            })
         return {
-            "monthly_summary": monthly_summary,
-            "totals": totals,
-            "large_deposits": large_deposits,
+            "report_format": REPORT_FORMAT_VERSION,
+            "data_source": DATA_SOURCE_LABEL,
+            "monthly_summary": clean_monthly,
+            "totals": clean_totals,
+            "large_deposits": clean_large,
             "professional_summary": professional_summary,
             "risk_analysis": risk_analysis or {},
             "detected_bank": detected_bank,

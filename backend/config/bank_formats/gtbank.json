@@ -1,0 +1,46 @@
+{
+  "bank_id": "gtbank",
+  "name": "Guaranty Trust Bank",
+  "keywords": ["guaranty trust", "gtbank", "gt bank", "gtco", "ibank.gtbank", "ibank gtbank"],
+  "key_value_patterns": {
+    "account_number": [
+      "account\\s*(?:no\\.?|number)\\s*[:=]?\\s*([0-9\\-]+)",
+      "a/c\\s*(?:no\\.?)?\\s*[:=]?\\s*([0-9\\-]+)"
+    ],
+    "opening_balance": [
+      "opening\\s*balance\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)",
+      "opening\\s*bal\\.?\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)"
+    ],
+    "closing_balance": [
+      "closing\\s*balance\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)",
+      "closing\\s*bal\\.?\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)"
+    ],
+    "statement_period": [
+      "([0-9]{1,2}[-/][A-Za-z]{3}[-/][0-9]{4})\\s*to\\s*([0-9]{1,2}[-/][A-Za-z]{3}[-/][0-9]{4})"
+    ]
+  },
+  "table_column_mapping": {
+    "date": "Date",
+    "value date": "Date",
+    "transaction date": "Date",
+    "description": "Description",
+    "particulars": "Description",
+    "narration": "Description",
+    "credit": "Credit",
+    "deposit": "Credit",
+    "debit": "Debit",
+    "withdrawal": "Debit",
+    "balance": "Balance",
+    "running balance": "Balance"
+  },
+  "date_formats": [
+    "%d-%b-%Y",
+    "%d/%m/%Y",
+    "%d-%m-%Y",
+    "%d %b %Y"
+  ],
+  "amount_cleanup": {
+    "currency_symbols": ["₦", "NGN"],
+    "negative_indicators": ["(", ")", "-"]
+  }
+}

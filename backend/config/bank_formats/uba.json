@@ -1,0 +1,38 @@
+{
+  "bank_id": "uba",
+  "name": "United Bank for Africa",
+  "keywords": ["united bank", "uba", "u.b.a"],
+  "key_value_patterns": {
+    "account_number": [
+      "account\\s*(?:no\\.?|number)\\s*[:=]?\\s*([0-9\\-]+)",
+      "a/c\\s*[:=]?\\s*([0-9\\-]+)"
+    ],
+    "opening_balance": [
+      "opening\\s*balance\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)"
+    ],
+    "closing_balance": [
+      "closing\\s*balance\\s*[:=]?\\s*([\\d,.\\(\\)\\-]+)"
+    ],
+    "statement_period": [
+      "period\\s*[:=]?\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})\\s*to\\s*([0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4})"
+    ]
+  },
+  "table_column_mapping": {
+    "date": "Date",
+    "value date": "Date",
+    "description": "Description",
+    "narration": "Description",
+    "credit": "Credit",
+    "debit": "Debit",
+    "balance": "Balance"
+  },
+  "date_formats": [
+    "%d/%m/%Y",
+    "%d-%b-%Y",
+    "%Y-%m-%d"
+  ],
+  "amount_cleanup": {
+    "currency_symbols": ["₦", "NGN"],
+    "negative_indicators": ["(", ")", "-"]
+  }
+}

@@ -67,27 +67,30 @@ class SmartColumnDetector:
     
     @staticmethod
     def _detect_date_column(df: pd.DataFrame) -> Optional[str]:
-        """Find column with date-like values."""
+        """Find column with date-like values. Prefer columns with many unique dates (real transaction dates vary)."""
         date_pattern = re.compile(
             r'\d{1,2}[-/\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|'
             r'January|February|March|April|May|June|July|August|September|October|November|December|'
             r'\d{1,2})[-/\s]\d{2,4}',
             re.IGNORECASE
         )
-        
+        best_col = None
+        best_score = -1
         for col in df.columns:
-            # Check if column values match date pattern
-            sample = df[col].dropna().astype(str).head(20)
+            sample = df[col].dropna().astype(str)
             if len(sample) == 0:
                 continue
-            
             matches = sum(1 for val in sample if date_pattern.search(str(val)))
             match_ratio = matches / len(sample)
-            
-            if match_ratio > 0.5:  # More than 50% look like dates
-                return col
-        
-        return None
+            if match_ratio <= 0.5:
+                continue
+            # Prefer column with more unique values (avoids picking header/footer that repeats same date)
+            uniques = sample.nunique()
+            score = match_ratio * 10 + min(uniques / max(len(sample), 1), 1.0)
+            if score > best_score:
+                best_score = score
+                best_col = col
+        return best_col
     
     @staticmethod
     def _get_numeric_columns(df: pd.DataFrame) -> list:
@@ -234,7 +237,6 @@ class SmartColumnDetector:
         return best_col
     
     @staticmethod
-    @staticmethod
     def _detect_credit_debit_by_name(df: pd.DataFrame, numeric_cols: list) -> Tuple[Optional[str], Optional[str]]:
         """
         High priority name-based detection.
@@ -303,29 +305,29 @@ class SmartColumnDetector:
     @staticmethod
     def _detect_description_column(df: pd.DataFrame, exclude_cols: list) -> Optional[str]:
         """
-        Detect description column.
-        Should be text-based and not a date or numeric column.
+        Detect description column. Prefer column with many unique values (real descriptions vary).
         """
         exclude_cols = [col for col in exclude_cols if col is not None]
-        
+        best_col = None
+        best_score = -1
         for col in df.columns:
             if col in exclude_cols:
                 continue
-            
-            # Check if it's text-based
-            sample = df[col].dropna().astype(str).head(20)
+            sample = df[col].dropna().astype(str)
             if len(sample) == 0:
                 continue
-            
-            # Should have some text (not just numbers)
             has_text = sum(1 for val in sample if re.search(r'[a-zA-Z]', str(val)))
-            
-            if has_text / len(sample) > 0.5:
-                return col
-        
-        # Fallback: return first non-excluded column
+            if has_text / len(sample) <= 0.5:
+                continue
+            # Prefer column with more unique values (avoids picking same URL/text for every row)
+            uniques = sample.nunique()
+            score = min(uniques / max(len(sample), 1), 1.0)
+            if score > best_score:
+                best_score = score
+                best_col = col
+        if best_col is not None:
+            return best_col
         for col in df.columns:
             if col not in exclude_cols:
                 return col
-        
         return None
