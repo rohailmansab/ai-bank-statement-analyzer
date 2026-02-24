@@ -25,16 +25,26 @@ class AICore:
         if model_preference == "gemini" and self.gemini_client:
             try:
                 print(f"[AI CORE] Gemini prompt length: {len(prompt)}")
-                response = self.gemini_client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=prompt,
-                    config={"system_instruction": system_instruction} if system_instruction else None
-                )
-                if response and hasattr(response, 'text'):
+                response = None
+                for model_id in ("gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-pro"):
+                    try:
+                        response = self.gemini_client.models.generate_content(
+                            model=model_id,
+                            contents=prompt,
+                            config={"system_instruction": system_instruction} if system_instruction else None
+                        )
+                        if response and getattr(response, 'text', None):
+                            break
+                    except Exception as model_err:
+                        if "404" in str(model_err) or "not found" in str(model_err).lower():
+                            response = None
+                            continue
+                        raise
+                if not response or not getattr(response, 'text', None):
+                    print(f"[AI CORE] All Gemini models failed or returned empty")
+                else:
                     print(f"[AI CORE] Gemini success! Response length: {len(response.text)}")
                     return response.text.strip()
-                else:
-                    print(f"[AI CORE] Gemini returned empty response or invalid format: {response}")
             except Exception as e:
                 print(f"[AI CORE ERROR] Gemini failed: {e}")
                 # Fallback to OpenAI if Gemini fails

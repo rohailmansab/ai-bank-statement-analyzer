@@ -32,8 +32,9 @@ async def analyze_statement(file: UploadFile = File(...), user: str = Depends(ge
         # Step 2: EXTRACTION pipeline (Normalizes and Validates internally)
         df, validation_report = await parser.parse(content, file.filename, extension)
         
-        # Fallback to AI if standard parsers fail or return poor results
-        if df.empty or validation_report.get("confidence") == "failed":
+        # Fallback: only use AI extraction if USE_AI is on; otherwise try OCR and fail cleanly
+        from backend.config import USE_AI
+        if (df.empty or validation_report.get("confidence") == "failed") and USE_AI:
             print("[INFO] Standard parsing failed or low confidence, falling back to AI extraction...")
             df = await parser.parse_with_ai(content)
             if not df.empty:
@@ -54,37 +55,56 @@ async def analyze_statement(file: UploadFile = File(...), user: str = Depends(ge
         totals = AnalysisService.calculate_totals_and_averages(df)
         large_deposits = AnalysisService.detect_large_deposits(df, threshold=50000)
         
-        # Step 4: ADVANCED AI ANALYSIS
-        from backend.services.ai_core import AICore
-        from backend.services.ai_classifier import AIClassifier
-        from backend.services.anomaly_detector import AnomalyDetector
-        from backend.services.professional_summarizer import ProfessionalSummarizer
+        # Step 4: AI ANALYSIS only when USE_AI is on; otherwise rule-based only (no Gemini/OpenAI)
+        if USE_AI:
+            from backend.services.ai_core import AICore
+            from backend.services.ai_classifier import AIClassifier
+            from backend.services.anomaly_detector import AnomalyDetector
+            from backend.services.professional_summarizer import ProfessionalSummarizer
+            ai_core = AICore()
+            classifier = AIClassifier(ai_core)
+            anomaly_detector = AnomalyDetector(ai_core)
+            summarizer = ProfessionalSummarizer(ai_core)
+            application_date = "2026-02-18"
+            if large_deposits:
+                large_deposits = await classifier.classify_large_deposits(large_deposits, application_date)
+            df_dict = df.to_dict('records')
+            anomalies = await anomaly_detector.detect_anomalies(df_dict, validation_report, application_date)
+            classified_summary = "\n".join([f"- {d.get('Date')}: {d.get('Category')}" for d in large_deposits])
+            professional_summary = await summarizer.generate_summary(
+                parser.detected_bank, user, validation_report, totals, classified_summary
+            )
+        else:
+            # No AI: rule-based executive summary and anomaly verdict only
+            dr = validation_report.get("date_range") or {}
+            start = dr.get("start", "unknown")
+            end = dr.get("end", "unknown")
+            total_credits = totals.get("total_income") or totals.get("total_credit") or 0.0
+            total_debits = totals.get("total_expense") or totals.get("total_debit") or 0.0
+            n_tx = validation_report.get("total_transactions", 0)
+            professional_summary = (
+                f"This statement is for {user} with {parser.detected_bank}, covering {start} to {end}. "
+                f"Total credits: {total_credits:,.2f} NGN; total debits: {total_debits:,.2f} NGN; "
+                f"transaction count: {n_tx}. (Analysis from statement data; no AI APIs used.)"
+            )
+            anomalies = {
+                "overall_risk_score": 0.0,
+                "risk_level": "low",
+                "verdict": "Anomaly analysis not run (AI disabled). No red flags identified in the provided data.",
+                "red_flags": [],
+                "positive_indicators": [],
+                "recommendations": [],
+            }
+            for d in large_deposits:
+                d["Category"] = d.get("Category") or "—"
         
-        ai_core = AICore()
-        classifier = AIClassifier(ai_core)
-        anomaly_detector = AnomalyDetector(ai_core)
-        summarizer = ProfessionalSummarizer(ai_core)
-        
-        # Batch Classify Deposits
-        application_date = "2026-02-18" # Should ideally come from request
-        if large_deposits:
-            large_deposits = await classifier.classify_large_deposits(large_deposits, application_date)
-        
-        # Risk & Anomaly Detection
-        df_dict = df.to_dict('records')
-        anomalies = await anomaly_detector.detect_anomalies(df_dict, validation_report, application_date)
-        
-        # Step 5: BUILD FINAL REPORT
-        classified_summary = "\n".join([f"- {d.get('Date')}: {d.get('Category')}" for d in large_deposits])
-        professional_summary = await summarizer.generate_summary(
-            parser.detected_bank, user, validation_report, totals, classified_summary
-        )
-        
+        extraction_metadata = getattr(parser, "_config_driven_metadata", None) or {}
         report = ReportBuilder.build_visa_summary(
             df, monthly_summary, totals, large_deposits, validation_report,
             professional_summary=professional_summary,
             risk_analysis=anomalies,
-            detected_bank=parser.detected_bank
+            detected_bank=parser.detected_bank,
+            extraction_metadata=extraction_metadata,
         )
         
         # Add extraction metadata

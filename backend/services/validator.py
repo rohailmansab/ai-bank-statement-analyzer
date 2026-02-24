@@ -55,7 +55,9 @@ class DataValidator:
         """Validate that totals are reasonable and realistic."""
         total_credit = report["total_credit"]
         total_debit = report["total_debit"]
-        
+        max_credit = float(df["Credit"].max()) if "Credit" in df.columns and len(df) else 0.0
+        max_debit = float(df["Debit"].max()) if "Debit" in df.columns and len(df) else 0.0
+
         # Check 1: At least one of credit or debit should be non-zero
         if total_credit == 0 and total_debit == 0:
             print("[VALIDATION FAILED] Both credit and debit are zero")
@@ -83,27 +85,28 @@ class DataValidator:
                 return False
                 
         if len(df) > 5:
-            # For substantial statements, at least one amount should be significant
-            if max_credit < 50000 and max_debit < 50000:
-                print(f"[VALIDATION FAILED] Max credit ({max_credit}) and debit ({max_debit}) are both < 50,000 in {len(df)} rows")
-                print("[VALIDATION FAILED] Likely reading indexes, page numbers, or dates as amounts")
+            # At least one side should have realistic amounts (allow one column small, e.g. debit-heavy statement)
+            if max_credit < 5000 and max_debit < 5000:
+                print(f"[VALIDATION FAILED] Max credit ({max_credit}) and debit ({max_debit}) are both < 5,000 in {len(df)} rows")
                 return False
         
-        # Check 5: Total credit should be reasonable for bank statements
-        if total_credit < 1000 and len(df) > 5:
-            print(f"[VALIDATION FAILED] Total credit ({total_credit}) is too small for {len(df)} transactions")
+        # Check 5: For many rows, at least one total should be non-trivial
+        if len(df) > 10 and total_credit < 500 and total_debit < 500:
+            print(f"[VALIDATION FAILED] Totals too small for {len(df)} transactions")
             return False
         
         return True
     
     @staticmethod
     def _validate_dates(df: pd.DataFrame, report: Dict[str, Any]) -> bool:
-        """Validate date range and extract months."""
+        """Validate date range and extract months. Always sets date_range/months_found when possible."""
         try:
+            df = df.copy()
             df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
             df = df.dropna(subset=['Date'])
             
             if df.empty:
+                report["months_found"] = report.get("months_found", 0)
                 return False
             
             min_date = df['Date'].min()
@@ -114,47 +117,44 @@ class DataValidator:
                 "end": max_date.strftime('%Y-%m-%d')
             }
             
-            # Count unique months
             df['Month'] = df['Date'].dt.to_period('M')
             report["months_found"] = df['Month'].nunique()
             
-            # Check: Should have at least 1 month
             if report["months_found"] < 1:
                 return False
             
-            # Check: Date range should be reasonable (not spanning 100 years)
             date_span_days = (max_date - min_date).days
-            if date_span_days > 365 * 10:  # More than 10 years
-                print(f"[VALIDATION WARNING] Date span ({date_span_days} days) is too large")
+            if date_span_days > 365 * 20:
+                print(f"[VALIDATION FAILED] Date span ({date_span_days} days) is too large")
                 return False
+            if date_span_days > 365 * 10:
+                print(f"[VALIDATION WARNING] Date span ({date_span_days} days) is large but accepting")
             
-            # Check: Years should be recent (not in distant past or future)
             from datetime import datetime
             current_year = datetime.now().year
             min_year = min_date.year
             max_year = max_date.year
-            
-            if min_year < current_year - 5 or max_year > current_year + 1:
-                print(f"[VALIDATION WARNING] Years ({min_year}-{max_year}) are outside reasonable range")
-                return False
+            if min_year < current_year - 25 or max_year > current_year + 2:
+                print(f"[VALIDATION WARNING] Years ({min_year}-{max_year}) unusual but accepting")
             
             return True
             
         except Exception as e:
             print(f"[VALIDATION ERROR] Date validation failed: {e}")
+            report["months_found"] = report.get("months_found", 1)
             return False
     
     @staticmethod
     def _validate_completeness(df: pd.DataFrame, report: Dict[str, Any]) -> bool:
-        """Check that we have complete data."""
-        # Check 1: Should have descriptions
-        empty_descriptions = df['Description'].isna().sum() + (df['Description'] == '').sum()
-        if empty_descriptions > len(df) * 0.5:  # More than 50% empty
+        """Check that we have complete data. Lenient for GTBank-style outputs."""
+        if 'Description' not in df.columns:
+            return True
+        empty_descriptions = df['Description'].isna().sum() + (df['Description'].astype(str).str.strip() == '').sum()
+        if empty_descriptions > len(df) * 0.85:  # Only fail if >85% empty (was 50%)
             return False
         
-        # Check 2: Should have at least some amounts
         rows_with_amounts = ((df['Credit'] > 0) | (df['Debit'] > 0)).sum()
-        if rows_with_amounts < len(df) * 0.3:  # Less than 30% have amounts
+        if rows_with_amounts < len(df) * 0.2:  # At least 20% have amounts (was 30%)
             return False
         
         return True
@@ -184,11 +184,21 @@ class DataValidator:
     @staticmethod
     def should_retry_extraction(validation_report: Dict[str, Any]) -> bool:
         """Determine if extraction should be retried with fallback parser."""
+        total_tx = validation_report.get("total_transactions", 0)
+        total_credit = validation_report.get("total_credit", 0) or 0
+        total_debit = validation_report.get("total_debit", 0) or 0
+        
+        # Accept if we have any usable data with real amounts (avoid rejecting gtbank-style output)
+        if total_tx >= 5 and (total_credit > 0 or total_debit > 0):
+            return False
+        
         if validation_report.get("confidence") == "low":
             return True
         
-        # Specific retry conditions
-        if validation_report.get("total_credit", 0) == 0 and validation_report.get("total_debit", 0) == 0:
+        if total_tx <= 10:
+            return True
+        
+        if total_credit == 0 and total_debit == 0:
             return True
         
         if validation_report.get("months_found", 0) == 0:

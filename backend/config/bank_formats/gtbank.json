@@ -1,0 +1,52 @@
+{
+  "bank_id": "gtbank",
+  "bank_name": "Guaranty Trust Bank Ltd (GTCO)",
+  "date_format": "%d-%b-%Y",
+  "keywords": ["ibank.gtbank", "gtbank", "Guaranty Trust", "Customer Statement", "GTCO"],
+  "header_keywords": {
+    "account_number": "Account No:",
+    "opening_balance": "Opening Balance:",
+    "closing_balance": "Closing Balance:",
+    "address": "Address:",
+    "currency": "Currency:",
+    "period": "Period:",
+    "total_debit": "Total Debit:",
+    "total_credit": "Total Credit:"
+  },
+  "key_value_patterns": {
+    "account_number": ["Account No:?\\s*([0-9]{10,})", "Account Number:?\\s*([0-9\\s-]+)"],
+    "opening_balance": ["Opening Balance:?\\s*([\\d,.]+)", "Opening Bal:?\\s*([\\d,.]+)"],
+    "closing_balance": ["Closing Balance:?\\s*([\\d,.]+)", "Closing Bal:?\\s*([\\d,.]+)"],
+    "period": ["Period:?\\s*([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4}\\s*-\\s*[A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})", "Statement Period:?\\s*(.+?)(?=\\n|$)"],
+    "print_date": ["Print Date:?\\s*([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})"],
+    "total_debit": ["Total Debit:?\\s*([\\d,.]+)"],
+    "total_credit": ["Total Credit:?\\s*([\\d,.]+)"],
+    "statement_period": ["Print Date:?\\s*([A-Za-z]+ \\d{1,2}, \\d{4})"],
+    "account_holder": ["Customer Statement[\\s\\S]*?([A-Z][A-Za-z\\s]+)(?=\\n|Address|Account)"],
+    "address": ["Address:?\\s*(.+?)(?=\\n\\s*Account|\\n\\s*Currency|$)"],
+    "currency": ["Currency:?\\s*([A-Z]{3})", "NGN"],
+    "branch_name": ["Branch Name:?\\s*([A-Za-z]+)"]
+  },
+  "transaction_table": {
+    "header": ["Trans Date", "Value Date", "Debit", "Credit", "Balance", "Remarks"],
+    "column_mapping": {
+      "date": "Trans Date",
+      "description": "Remarks",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    }
+  },
+  "table_column_mapping": {
+    "Trans Date": "Date",
+    "Value Date": "Date",
+    "Debit": "Debit",
+    "Credit": "Credit",
+    "Balance": "Balance",
+    "Remarks": "Description",
+    "Date": "Date",
+    "Description": "Description",
+    "Particulars": "Description",
+    "Narration": "Description"
+  }
+}

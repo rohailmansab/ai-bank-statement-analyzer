@@ -20,12 +20,15 @@ class MultilineParser(BaseParser):
         # Detection regex: Expanded to support more date formats
         date_pattern = re.compile(r'(\d{1,2}[-/ ]?[A-Za-z]{3,9}[-/ ]?\d{2,4}|\d{1,2}/\d{1,2}/\d{2,4}|\d{1,2} [A-Za-z]{3} \d{4})', re.IGNORECASE)
         amount_pattern = re.compile(r'^-?\d{1,3}(?:,\d{3})*(?:\.\d{2})$')
-        
+        header_pattern = re.compile(
+            r'ibank\.gtbank|Print\s*Date|Customer\s*Statement|\d{1,2}:\d{2}\s*(?:ibank|AM|PM)?',
+            re.IGNORECASE
+        )
         with pdfplumber.open(io.BytesIO(content)) as pdf:
             for page_num, page in enumerate(pdf.pages):
                 words = page.extract_words(x_tolerance=3, y_tolerance=3)
-                print(f"[DEBUG] Page {page_num+1} Words Found: {len(words)}")
-                if not words: continue
+                if not words:
+                    continue
                 
                 # Fuzzy grouping into lines (bucket by 2.5 pixels for better robustness)
                 lines_buckets = {}
@@ -39,14 +42,17 @@ class MultilineParser(BaseParser):
                 
                 for bucket in sorted_buckets:
                     line_words = sorted(lines_buckets[bucket], key=lambda x: x['x0'])
-                    # Context for date searching
-                    start_text = " ".join([w['text'] for w in line_words[:4]])
+                    full_line = " ".join([w['text'] for w in line_words])
+                    start_text = " ".join([w['text'] for w in line_words[:5]])
                     match = date_pattern.search(start_text)
-                    
                     if match:
+                        if header_pattern.search(full_line):
+                            if current_tx:
+                                transactions.append(self._finalize_tx(current_tx))
+                                current_tx = None
+                            continue
                         if current_tx:
                             transactions.append(self._finalize_tx(current_tx))
-                        
                         tx_date = match.group(1)
                         current_tx = {
                             'Date': tx_date,

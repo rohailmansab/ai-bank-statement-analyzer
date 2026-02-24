@@ -6,6 +6,11 @@ bcrypt
 pandas
 pdfplumber
 openpyxl
+# Optional: for scanned PDFs (OCR)
+# pytesseract
+# Pillow
+# pdf2image
+# PyMuPDF
 google-genai
 openai
 pydantic-settings

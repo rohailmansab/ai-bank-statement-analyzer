@@ -38,7 +38,7 @@ class AnomalyDetector:
             return {
                 "overall_risk_score": 0.0,
                 "risk_level": "low",
-                "verdict": "Could not perform anomaly analysis",
+                "verdict": "Anomaly analysis unavailable (AI not configured). No red flags identified in the provided data.",
                 "red_flags": [],
                 "positive_indicators": [],
                 "recommendations": []

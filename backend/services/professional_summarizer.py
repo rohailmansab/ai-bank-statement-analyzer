@@ -32,4 +32,18 @@ class ProfessionalSummarizer:
         prompt = prompt.replace("{classified_deposits_summary}", str(classified_deposits_summary))
         
         summary = await self.ai.call_ai(prompt)
-        return summary or "Executive summary could not be generated."
+        if summary and summary.strip():
+            return summary.strip()
+        # Rule-based fallback when AI is unavailable
+        dr = report.get("date_range") or report.get("metadata", {}).get("date_range") or {}
+        start = dr.get("start", "unknown")
+        end = dr.get("end", "unknown")
+        total_credits = totals.get("total_income") or totals.get("total_credit") or 0.0
+        total_debits = totals.get("total_expense") or totals.get("total_debit") or 0.0
+        n_tx = report.get("total_transactions", 0)
+        return (
+            f"This statement is for {account_holder} with {bank_name}, covering {start} to {end}. "
+            f"Total credits: {total_credits:,.2f} NGN; total debits: {total_debits:,.2f} NGN; "
+            f"transaction count: {n_tx}. "
+            f"(Executive summary generated from statement data; AI was unavailable.)"
+        )

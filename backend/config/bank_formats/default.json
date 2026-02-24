@@ -1,0 +1,44 @@
+{
+  "bank_id": "default",
+  "bank_name": "Default Bank",
+  "date_format": "%d/%m/%Y",
+  "keywords": [],
+  "header_keywords": {
+    "account_number": "Account No:",
+    "opening_balance": "Opening Balance:",
+    "closing_balance": "Closing Balance:",
+    "account_holder": "Account Name:",
+    "address": "Address:",
+    "currency": "Currency:"
+  },
+  "key_value_patterns": {
+    "account_number": ["Account No:?\\s*([A-Z0-9\\s-]+)", "Account Number:?\\s*([A-Z0-9\\s-]+)"],
+    "opening_balance": ["Opening Balance:?\\s*([\\d,.]+)", "Opening Bal:?\\s*([\\d,.]+)"],
+    "closing_balance": ["Closing Balance:?\\s*([\\d,.]+)", "Closing Bal:?\\s*([\\d,.]+)"],
+    "account_holder": ["Account Name:?\\s*(.+?)(?=\\n|Address|$)", "Customer:?\\s*(.+?)(?=\\n|$)"],
+    "address": ["Address:?\\s*(.+?)(?=\\n\\s*Account|$)"],
+    "currency": ["Currency:?\\s*([A-Z]{3})", "NGN|USD|EUR"]
+  },
+  "transaction_table": {
+    "header": ["Date", "Value Date", "Description", "Debit", "Credit", "Balance", "Remarks"],
+    "column_mapping": {
+      "date": "Date",
+      "description": "Description",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    }
+  },
+  "table_column_mapping": {
+    "Date": "date",
+    "Value Date": "date",
+    "Trans Date": "date",
+    "Description": "description",
+    "Particulars": "description",
+    "Narration": "description",
+    "Remarks": "description",
+    "Debit": "debit",
+    "Credit": "credit",
+    "Balance": "balance"
+  }
+}

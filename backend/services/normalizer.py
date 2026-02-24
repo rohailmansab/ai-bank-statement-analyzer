@@ -112,20 +112,40 @@ class DataNormalizer:
     
     @staticmethod
     def _normalize_dates(df: pd.DataFrame) -> pd.DataFrame:
-        """Normalize date formats to YYYY-MM-DD."""
+        """Normalize date formats and fix clearly wrong years (e.g. 2002 when statement is 2026)."""
         if 'Date' not in df.columns:
             return df
         
         df['Date'] = df['Date'].apply(DataNormalizer._parse_date)
-        
-        # Remove rows with invalid dates
         df = df[df['Date'].notna()]
-        
+        if df.empty:
+            return df
+
+        # Fix misread years: if max year is recent (2020+) and some dates are 2+ years older, assume year was misread
+        try:
+            dates = pd.to_datetime(df['Date'], errors='coerce')
+            now_year = datetime.now().year
+            ref_year = int(dates.max().year) if hasattr(dates.max(), 'year') else now_year
+            if ref_year < now_year - 1:
+                ref_year = now_year  # statement likely current year; parsed years were misread
+            if ref_year >= 2020:
+                def _fix_year(d):
+                    if pd.isna(d) or not hasattr(d, 'year'):
+                        return d
+                    if d.year < ref_year - 2:
+                        try:
+                            return d.replace(year=ref_year)
+                        except ValueError:
+                            return d.replace(year=ref_year - 1)
+                    return d
+                df['Date'] = df['Date'].apply(_fix_year)
+        except Exception:
+            pass
         return df
     
     @staticmethod
     def _parse_date(date_value) -> Optional[datetime]:
-        """Parse various date formats."""
+        """Parse various date formats. 2-digit year: 00-50 -> 2000-2050 for bank statements."""
         if pd.isna(date_value) or date_value == '':
             return None
         
@@ -134,21 +154,27 @@ class DataNormalizer:
         
         date_str = str(date_value).strip()
         
-        # Common date formats
-        formats = [
-            '%d-%b-%Y',      # 02-Sep-2025
-            '%d/%m/%Y',      # 02/09/2025
-            '%Y-%m-%d',      # 2025-09-02
-            '%d-%m-%Y',      # 02-09-2025
-            '%d %b %Y',      # 02 Sep 2025
-            '%d-%B-%Y',      # 02-September-2025
-            '%d/%m/%y',      # 02/09/25
-            '%d-%b-%y',      # 02-Sep-25
+        formats_4digit = [
+            '%d-%b-%Y', '%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y',
+            '%d %b %Y', '%d-%B-%Y',
         ]
-        
-        for fmt in formats:
+        for fmt in formats_4digit:
             try:
                 return datetime.strptime(date_str, fmt)
+            except (ValueError, TypeError):
+                continue
+
+        # 2-digit year: try 20yy first (2000-2050) for statement context
+        formats_2digit = [
+            '%d/%m/%y', '%d-%b-%y', '%d-%m-%y', '%d %b %y',
+        ]
+        for fmt in formats_2digit:
+            try:
+                d = datetime.strptime(date_str, fmt)
+                # If year is 1900-1949 (from %y 00-49), treat as 2000-2049
+                if d.year < 1950:
+                    d = d.replace(year=d.year + 100)
+                return d
             except (ValueError, TypeError):
                 continue
         

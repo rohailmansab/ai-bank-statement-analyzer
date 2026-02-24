@@ -1,0 +1,34 @@
+{
+  "bank_id": "alpha_bank",
+  "bank_name": "Alpha Bank",
+  "date_format": "%d-%m-%Y",
+  "keywords": ["Alpha Bank", "alpha bank"],
+  "header_keywords": {
+    "account_number": "Account No:",
+    "opening_balance": "Opening Balance:",
+    "closing_balance": "Closing Balance:"
+  },
+  "key_value_patterns": {
+    "account_number": ["Account No:?\\s*([A-Z0-9\\s-]+)"],
+    "opening_balance": ["Opening Balance:?\\s*([\\d,.]+)"],
+    "closing_balance": ["Closing Balance:?\\s*([\\d,.]+)"]
+  },
+  "transaction_table": {
+    "header": ["Trans Date", "Value Date", "Debit", "Credit", "Balance", "Remarks"],
+    "column_mapping": {
+      "date": "Trans Date",
+      "description": "Remarks",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance"
+    }
+  },
+  "table_column_mapping": {
+    "Trans Date": "date",
+    "Value Date": "date",
+    "Debit": "debit",
+    "Credit": "credit",
+    "Balance": "balance",
+    "Remarks": "description"
+  }
+}

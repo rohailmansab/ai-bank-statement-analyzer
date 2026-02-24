@@ -5,6 +5,8 @@ load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+# When False/0: no Gemini/OpenAI; use only OCR, tables, rule-based summary & anomaly
+USE_AI = os.getenv("USE_AI", "0").lower() in ("1", "true", "yes")
 SECRET_KEY = os.getenv("SECRET_KEY", "bsa_secret_key_2024_internal_tool")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours

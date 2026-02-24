@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { LogOut, Upload, FileText, TrendingUp, AlertCircle, CheckCircle2, Download, BarChart3, LayoutDashboard, Settings, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+import { downloadReportAsPdf } from '../utils/pdfExport';
 import SummaryCards from '../components/SummaryCards';
 import MonthlySummaryTable from '../components/MonthlySummaryTable';
 import UnusualDepositsTable from '../components/UnusualDepositsTable';
+import AllTransactionsTable from '../components/AllTransactionsTable';
 import FileUpload from '../components/FileUpload';
 import ReportsView from '../components/ReportsView';
 import AuditLogView from '../components/AuditLogView';
@@ -23,12 +25,19 @@ const Dashboard = ({ onLogout }) => {
     };
 
     const downloadReport = () => {
+        if (!data) return;
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `BSA_Report_${data.filename}.json`;
+        a.download = `BSA_Report_${data?.filename || 'report'}.json`;
         a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const downloadPdfReport = () => {
+        if (!data) return;
+        downloadReportAsPdf(data, `BSA_Report_${data?.filename || 'report'}.pdf`);
     };
 
     const renderContent = () => {
@@ -100,7 +109,7 @@ const Dashboard = ({ onLogout }) => {
                                     Dataset: {data.filename}
                                 </p>
                             </div>
-                            <div className="flex gap-4 w-full md:w-auto">
+                            <div className="flex flex-wrap gap-3 w-full md:w-auto">
                                 <button
                                     onClick={() => setData(null)}
                                     className="flex-1 md:flex-none h-14 px-6 bg-slate-900 border border-slate-800 hover:bg-slate-800 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-slate-300"
@@ -110,10 +119,17 @@ const Dashboard = ({ onLogout }) => {
                                 </button>
                                 <button
                                     onClick={downloadReport}
-                                    className="flex-1 md:flex-none h-14 px-8 bg-gradient-to-r from-primary-600 to-primary-500 hover:shadow-primary-500/20 shadow-xl rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-white"
+                                    className="flex-1 md:flex-none h-14 px-6 bg-slate-800 border border-slate-700 hover:bg-slate-700 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-slate-200"
                                 >
                                     <Download className="w-4 h-4" />
                                     Export Data
+                                </button>
+                                <button
+                                    onClick={downloadPdfReport}
+                                    className="flex-1 md:flex-none h-14 px-6 bg-gradient-to-r from-primary-600 to-primary-500 hover:shadow-primary-500/20 shadow-xl rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-3 text-white"
+                                >
+                                    <FileText className="w-4 h-4" />
+                                    Export PDF
                                 </button>
                             </div>
                         </div>
