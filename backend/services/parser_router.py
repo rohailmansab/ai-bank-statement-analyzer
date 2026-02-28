@@ -2,8 +2,6 @@ import pandas as pd
 import io
 import os
 import json
-import openai
-from google import genai
 from typing import List, Dict, Any, Tuple
 from .parser_base import BaseParser
 from .parser_table import TableParser
@@ -17,7 +15,7 @@ from .validator import DataValidator
 from .bank_config import load_all_configs, detect_bank_from_text
 from .ai_core import AICore, BankDetector
 from .ai_prompts import PROMPT_TRANSACTION_EXTRACTION
-from backend.config import OPENAI_API_KEY, GEMINI_API_KEY, USE_AI
+from backend.config import USE_AI
 
 class ParserRouter:
     def __init__(self):
