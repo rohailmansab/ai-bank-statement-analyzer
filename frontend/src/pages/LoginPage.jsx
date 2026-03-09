@@ -3,6 +3,12 @@ import axios from 'axios';
 import { Lock, User, AlertCircle, ChevronRight, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+const getBackendUrl = () => {
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    if (apiUrl) return apiUrl.replace(/\/api\/?$/, '');
+    return 'http://localhost:8000';
+};
+
 const LoginPage = ({ onLogin }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -18,11 +24,12 @@ const LoginPage = ({ onLogin }) => {
         formData.append('username', username);
         formData.append('password', password);
 
+        const loginUrl = `${getBackendUrl()}/login`;
         try {
-            const response = await axios.post('http://localhost:8000/login', formData);
+            const response = await axios.post(loginUrl, formData, { timeout: 90000 });
             onLogin(response.data.access_token);
         } catch (err) {
-            const detail = err.response?.data?.detail || 'Connection failed. Is backend running?';
+            const detail = err.response?.data?.detail || (err.code === 'ECONNABORTED' ? 'Backend is waking up. Please wait and try again.' : 'Connection failed. Is backend running?');
             setError(detail);
         } finally {
             setLoading(false);
