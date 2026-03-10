@@ -24,8 +24,8 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
-        const skipLogout = error.config?.skipAuthRedirect;
-        if (status === 401 && !skipLogout) {
+        const isAnalyze = error.config?.url?.includes('analyze-statement') || error.config?.skipAuthRedirect;
+        if (status === 401 && !isAnalyze) {
             localStorage.removeItem('token');
             window.location.reload();
         }

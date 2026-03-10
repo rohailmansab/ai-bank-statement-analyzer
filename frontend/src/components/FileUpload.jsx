@@ -22,7 +22,14 @@ const FileUpload = ({ onSuccess, onError, setLoading, loading }) => {
             onSuccess(response.data);
         } catch (err) {
             const status = err.response?.status;
-            const errorMsg = err.response?.data?.detail || err.message || (status === 502 || status === 504 ? 'Request took too long (server limit). Try a smaller file or try again.' : 'Extraction failed. Please verify the bank statement format.');
+            const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+            const isServerError = status === 502 || status === 504 || status === 503;
+            let errorMsg = err.response?.data?.detail || err.message;
+            if (isTimeout || isServerError) {
+                errorMsg = 'Processing took too long (server limit on free tier). Try a smaller PDF or try again in a moment. You are still logged in.';
+            } else if (!errorMsg) {
+                errorMsg = 'Extraction failed. Please verify the bank statement format.';
+            }
             console.error('File Upload Error:', err);
             onError(errorMsg);
         } finally {
