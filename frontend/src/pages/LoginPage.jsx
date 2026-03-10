@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 const getBackendUrl = () => {
     const apiUrl = import.meta.env.VITE_API_URL || '';
     if (apiUrl) return apiUrl.replace(/\/api\/?$/, '');
+    if (typeof window !== 'undefined' && window.location?.hostname?.includes('onrender.com'))
+        return 'https://ai-bank-statement-analyzer.onrender.com';
     return 'http://localhost:8000';
 };
 

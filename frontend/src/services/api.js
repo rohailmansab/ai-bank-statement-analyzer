@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+const getApiBaseUrl = () => {
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    if (typeof window !== 'undefined' && window.location?.hostname?.includes('onrender.com'))
+        return 'https://ai-bank-statement-analyzer.onrender.com/api';
+    return 'http://localhost:8000/api';
+};
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+    baseURL: getApiBaseUrl(),
     timeout: 120000,
 });
 
