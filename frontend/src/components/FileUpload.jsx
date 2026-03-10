@@ -15,10 +15,14 @@ const FileUpload = ({ onSuccess, onError, setLoading, loading }) => {
 
         setLoading(true);
         try {
-            const response = await api.post('/analyze-statement', formData);
+            const response = await api.post('/analyze-statement', formData, {
+                timeout: 180000,
+                skipAuthRedirect: true,
+            });
             onSuccess(response.data);
         } catch (err) {
-            const errorMsg = err.response?.data?.detail || err.message || 'Extraction failed. Please verify the bank statement format.';
+            const status = err.response?.status;
+            const errorMsg = err.response?.data?.detail || err.message || (status === 502 || status === 504 ? 'Request took too long (server limit). Try a smaller file or try again.' : 'Extraction failed. Please verify the bank statement format.');
             console.error('File Upload Error:', err);
             onError(errorMsg);
         } finally {
